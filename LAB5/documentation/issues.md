@@ -1,25 +1,30 @@
-# Lab 5 — Static Code Analysis: Issue Log
+# Lab 5 — Static Code Analysis: Issues Identified and Fixes
 
 **Student:** Abhirama H Y  
 **SRN:** PES2UG24CS023  
 **Section:** A  
-**Assigned repository:** https://github.com/SETAPESU26/L5_20_scholarship_disbursement  
-**Working repository:** https://github.com/A6h1ramahy/PES2UG24CS023_SE-Lab/tree/main/LAB5
+**Program:** `scholarship_disbursement.py`
 
-> Important: line numbers and exact tool messages must be filled from the actual BEFORE reports generated on your computer. Do not invent line numbers or claim a finding was reported unless it appears in your report.
+This issue log is based on the supplied Pylint, Bandit, and Flake8 BEFORE/AFTER reports. Items described as manual-review items were not independently verified by those analyzer reports.
 
-| # | Issue / finding | Tool/category | Before line(s) | Risk / impact | Fix applied | Verification evidence |
-|---|---|---|---|---|---|---|
-| 1 | SQL query built using string interpolation/concatenation | Bandit/security | Fill from report | Untrusted input can change SQL query structure (SQL injection). | Use parameterized SQL (`?` placeholders) and pass values separately. | Bandit after report; inspect SQL calls. |
-| 2 | Shell command executed through `os.system` | Bandit/security | Fill from report | Shell interpretation can allow command injection and makes behavior harder to control. | Remove shell execution; use Python APIs directly. If a subprocess is genuinely needed, pass an argument list and avoid `shell=True`. | Bandit after report; search for `os.system` and `shell=True`. |
-| 3 | Mutable default such as `audit=[]` | Pylint/design | Fill from report | A shared list can retain entries across calls unexpectedly. | Use `None` as the default and create a new list inside the function. | Pylint after report; test repeated calls. |
-| 4 | Broad exception swallowed, e.g. `except Exception: pass` | Pylint/robustness | Fill from report | Errors are hidden, leaving callers unaware that an operation failed. | Catch only expected exceptions, log context where appropriate, and re-raise or report the error. | Pylint after report; review exception handling. |
-| 5 | Non-PEP 8 identifier such as `bySchemeCount` | Pylint/style | Fill from report | Inconsistent naming reduces readability and may trigger style warnings. | Rename to `count_by_scheme`. | Pylint and Flake8 after reports. |
-| 6 | Comparison to `None` using `==` | Pylint/style | Fill from report | Python convention is identity comparison; this is clearer and avoids custom equality behavior. | Use `is None` / `is not None`. | Pylint after report. |
-| 7 | Weak input validation for student, scheme, and amount | Correctness/robustness | Fill from inspection | Empty identifiers, invalid numbers, non-finite values, or non-positive amounts may enter the ledger. | Normalize text and validate amount before database write. | Run the program and test invalid values. |
-| 8 | Duplicate disbursement may be recorded more than once | Correctness/data integrity | Fill from inspection | A duplicate entry can cause a student to be counted or paid twice. | Add a uniqueness constraint on `(student_id, scheme)` and handle duplicate insertion. | Test a duplicate record and verify it is rejected. |
+| # | Issue | Category / Tool | Evidence before fixes | Fix applied / recommended | Evidence after fixes / status |
+|---:|---|---|---|---|---|
+| 1 | SQL statement constructed using string interpolation | Security — Bandit | Original file, line 10; Bandit reported **B608**, Medium severity, Medium confidence. | Use a parameterized SQL query and pass values separately as query parameters. | The supplied AFTER Bandit report says no issues were identified. |
+| 2 | Unsafe shell execution | Security — Bandit | Original file, line 26; Bandit reported **B605** and **B607**, Low severity. | Remove shell execution where unnecessary. If an external process is required, use a safer API and avoid shell interpretation. | The supplied AFTER Bandit report says no issues were identified. |
+| 3 | Exception silently swallowed | Security / code quality — Bandit and Pylint | Original file, lines 27–28; Bandit reported **B110** (Low); Pylint reported **W0718** for catching `Exception` at line 27. | Catch expected exception types, log useful context, and re-raise when the caller needs to know the operation failed. Avoid a silent `pass`. | The supplied AFTER Bandit report says no issues were identified. The reported broad-exception finding is not listed in the supplied AFTER Pylint report. |
+| 4 | Mutable default list argument | Code quality — Pylint | Original file, line 9; Pylint reported **W0102** (`dangerous-default-value`). | Change the default to `None`, then create a new list inside the function when no list is provided. | This finding is not listed in the supplied AFTER Pylint report. |
+| 5 | Function name does not follow snake_case | Code quality — Pylint | Original file, line 31; Pylint reported **C0103** (`invalid-name`) for `bySchemeCount`. | Rename it to `count_by_scheme` and update call sites. | This finding is not listed in the supplied AFTER Pylint report. |
+| 6 | Equality comparison with `None` | Code quality / style — Pylint and Flake8 | Original file, line 32; Pylint reported **C0121** and Flake8 reported **E711**. | Use `scheme is None`. | This finding is not listed in the supplied AFTER Pylint or Flake8 reports. |
+| 7 | Unused `Iterable` import remains | Code quality / style — Pylint and Flake8 | Not reported in the supplied BEFORE reports; appears in the AFTER reports at `scholarship_disbursement.py`, line 18. | Remove `Iterable` from the import statement if it is not used. | **Still present:** Pylint **W0611** and Flake8 **F401**, line 18. |
+| 8 | Lines exceed configured style limit | Style — Flake8 | BEFORE Flake8 reported long lines at lines 5, 10, 17, 19, and 34. The original `None` comparison also produced E711 at line 32. | Wrap long statements and keep lines within the configured limit. | **Still present:** Flake8 **E501** at lines 104, 153, and 154. |
+| 9 | Missing docstrings and other maintainability findings | Code quality — Pylint | BEFORE Pylint reported missing module/function docstrings and other quality findings; original score was **5.00/10**. | Add meaningful module/function docstrings, improve naming and control flow, and address the reported warnings. | AFTER Pylint score is **9.86/10**. The unused-import warning remains. |
+| 10 | Input validation | Correctness — manual review | Not established by the supplied analyzer reports. | Validate that student ID and scheme are non-empty and that the amount is a finite positive number. | Treat as a code-review item. The supplied reports alone do not prove that input-validation tests passed. |
+| 11 | Duplicate disbursement handling | Data integrity — manual review | Not established by the supplied analyzer reports. | Enforce a uniqueness rule for the student/scheme combination and handle database integrity errors explicitly. | Treat as a code-review item. The supplied reports alone do not prove duplicate-record tests passed. |
 
-## Notes
-- This is a working issue log for the supplied solution pattern. Confirm each item against the actual original file and generated analyzer reports.
-- Record the exact line numbers from `reports\pylint_report_before.txt`, `reports\bandit_report_before.txt`, and `reports\flake8_report_before.txt`.
-- The assignment asks for at least four issues, all Bandit findings fixed, Pylint score above 9.5, Flake8 findings addressed, before/after reports, and three commits.
+## Analyzer summary
+
+| Tool | Before | After | Assessment |
+|---|---|---|---|
+| Pylint | **5.00/10** | **9.86/10** | Score exceeds 9.5/10, but the unused `Iterable` import warning remains. |
+| Bandit | **4 findings:** 1 Medium and 3 Low | No issues identified | The supplied AFTER report indicates that the reported security findings were resolved. |
+| Flake8 | **6 findings** | **4 findings** | Not clean yet: remove the unused `Iterable` import and wrap the three lines reported with E501. |

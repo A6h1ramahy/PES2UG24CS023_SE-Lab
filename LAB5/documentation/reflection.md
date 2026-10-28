@@ -15,5 +15,3 @@ Security issues such as constructing SQL from untrusted strings or invoking shel
 
 ### 4. How did static analysis improve the program, and what are its limitations?
 The review encouraged parameterized SQL, explicit validation, safer exception handling, clearer naming, and consistent formatting. However, a clean report does not prove that a program is correct or secure: tools may miss context-dependent defects and can report false positives. The code still needs tests, manual review, and verification of expected behavior.
-
-> Before submission, personalize these answers to reflect the findings and outputs you actually observed. Do not claim a tool reported an issue unless your generated report supports that statement.
