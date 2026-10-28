@@ -1,0 +1,6 @@
+﻿D:\SE\Lab\LAB5\scholarship_disbursement_original.py:5:80: E501 line too long (122 > 79 characters)
+D:\SE\Lab\LAB5\scholarship_disbursement_original.py:10:80: E501 line too long (130 > 79 characters)
+D:\SE\Lab\LAB5\scholarship_disbursement_original.py:17:80: E501 line too long (88 > 79 characters)
+D:\SE\Lab\LAB5\scholarship_disbursement_original.py:19:80: E501 line too long (81 > 79 characters)
+D:\SE\Lab\LAB5\scholarship_disbursement_original.py:32:15: E711 comparison to None should be 'if cond is None:'
+D:\SE\Lab\LAB5\scholarship_disbursement_original.py:34:80: E501 line too long (96 > 79 characters)

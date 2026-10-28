@@ -4,35 +4,62 @@ Student: Abhirama H Y
 SRN: PES2UG24CS023
 Section: A
 
-Stage 2: security, code-quality, and correctness fixes.
+A small scholarship disbursement ledger demonstrating safer input handling,
+parameterized SQL, explicit validation, and audit logging.
 """
+
+from __future__ import annotations
 
 import logging
 import sqlite3
+from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
+from pathlib import Path
+from typing import Iterable
 
 LOGGER = logging.getLogger(__name__)
 
 
-def validate_disbursement(student_id, scheme, amount):
-    """Validate and normalize the fields for a disbursement."""
-    student_id = student_id.strip()
-    scheme = scheme.strip()
-    if not student_id:
+@dataclass(frozen=True)
+class Disbursement:
+    """Represents a validated scholarship disbursement."""
+
+    student_id: str
+    scheme: str
+    amount: Decimal
+
+
+def validate_disbursement(
+    student_id: str,
+    scheme: str,
+    amount: Decimal | str | int | float,
+) -> Disbursement:
+    """Validate and normalize the fields for one disbursement."""
+    normalized_student_id = student_id.strip()
+    normalized_scheme = scheme.strip()
+
+    if not normalized_student_id:
         raise ValueError("student_id must not be empty")
-    if not scheme:
+    if not normalized_scheme:
         raise ValueError("scheme must not be empty")
+
     try:
-        amount = Decimal(str(amount))
-    except (InvalidOperation, ValueError) as error:
-        raise ValueError("amount must be a valid number") from error
-    if not amount.is_finite() or amount <= 0:
+        normalized_amount = Decimal(str(amount))
+    except (InvalidOperation, ValueError) as exc:
+        raise ValueError("amount must be a valid number") from exc
+
+    if not normalized_amount.is_finite() or normalized_amount <= 0:
         raise ValueError("amount must be a finite positive number")
-    return student_id, scheme, amount
+
+    return Disbursement(
+        student_id=normalized_student_id,
+        scheme=normalized_scheme,
+        amount=normalized_amount,
+    )
 
 
-def create_schema(connection):
-    """Create the ledger table and prevent duplicate student/scheme entries."""
+def create_schema(connection: sqlite3.Connection) -> None:
+    """Create the ledger table if it does not already exist."""
     connection.execute(
         """
         CREATE TABLE IF NOT EXISTS disbursements (
@@ -47,11 +74,16 @@ def create_schema(connection):
     connection.commit()
 
 
-def record_disbursement(connection, student_id, scheme, amount, audit_log=None):
-    """Validate and record a disbursement once per student and scheme."""
-    student_id, scheme, amount = validate_disbursement(student_id, scheme, amount)
-    if audit_log is None:
-        audit_log = []
+def record_disbursement(
+    connection: sqlite3.Connection,
+    student_id: str,
+    scheme: str,
+    amount: Decimal | str | int | float,
+    audit_log: list[str] | None = None,
+) -> Disbursement:
+    """Validate and record a disbursement once for a student and scheme."""
+    item = validate_disbursement(student_id, scheme, amount)
+    audit_entries = audit_log if audit_log is not None else []
 
     try:
         connection.execute(
@@ -59,54 +91,76 @@ def record_disbursement(connection, student_id, scheme, amount, audit_log=None):
             INSERT INTO disbursements (student_id, scheme, amount)
             VALUES (?, ?, ?)
             """,
-            (student_id, scheme, str(amount)),
+            (item.student_id, item.scheme, str(item.amount)),
         )
         connection.commit()
-    except sqlite3.IntegrityError as error:
+    except sqlite3.IntegrityError as exc:
         connection.rollback()
         LOGGER.warning(
             "Duplicate disbursement rejected for student %s and scheme %s",
-            student_id,
-            scheme,
+            item.student_id,
+            item.scheme,
         )
-        raise ValueError(
-            "A disbursement already exists for this student and scheme"
-        ) from error
+        raise ValueError("A disbursement already exists for this student and scheme") from exc
     except sqlite3.Error:
         connection.rollback()
         LOGGER.exception("Could not record scholarship disbursement")
         raise
 
-    audit_log.append(f"Recorded {amount} for {student_id} under {scheme}")
-    return {"student_id": student_id, "scheme": scheme, "amount": amount}
+    audit_entries.append(
+        f"Recorded {item.amount} for {item.student_id} under {item.scheme}"
+    )
+    return item
 
 
-def count_by_scheme(connection, scheme=None):
-    """Return counts grouped by scheme, optionally for one scheme."""
-    if scheme is None:
-        rows = connection.execute(
-            "SELECT scheme, COUNT(*) FROM disbursements "
-            "GROUP BY scheme ORDER BY scheme"
-        ).fetchall()
-        return {str(row[0]): int(row[1]) for row in rows}
-
-    row = connection.execute(
-        "SELECT COUNT(*) FROM disbursements WHERE scheme = ?", (scheme,)
-    ).fetchone()
-    return {scheme: int(row[0])}
+def count_by_scheme(connection: sqlite3.Connection) -> dict[str, int]:
+    """Return the number of recorded disbursements grouped by scheme."""
+    rows = connection.execute(
+        """
+        SELECT scheme, COUNT(*)
+        FROM disbursements
+        GROUP BY scheme
+        ORDER BY scheme
+        """
+    ).fetchall()
+    return {str(scheme): int(count) for scheme, count in rows}
 
 
-def run_demo(database_path=":memory:"):
-    """Run a small demonstration using an in-memory database by default."""
-    audit_log = []
-    with sqlite3.connect(database_path) as connection:
+def list_disbursements(connection: sqlite3.Connection) -> list[Disbursement]:
+    """Return all ledger entries in a deterministic order."""
+    rows = connection.execute(
+        """
+        SELECT student_id, scheme, amount
+        FROM disbursements
+        ORDER BY student_id, scheme
+        """
+    ).fetchall()
+    return [
+        Disbursement(
+            student_id=str(student_id),
+            scheme=str(scheme),
+            amount=Decimal(str(amount)),
+        )
+        for student_id, scheme, amount in rows
+    ]
+
+
+def run_demo(database_path: str | Path = ":memory:") -> None:
+    """Run a small demonstration without executing shell commands."""
+    audit_log: list[str] = []
+    with sqlite3.connect(str(database_path)) as connection:
         create_schema(connection)
         record_disbursement(connection, "STU001", "Merit", "15000.00", audit_log)
-        record_disbursement(
-            connection, "STU002", "Need-Based", "10000.00", audit_log
-        )
+        record_disbursement(connection, "STU002", "Need-Based", "10000.00", audit_log)
+
+        print("Disbursements:")
+        for item in list_disbursements(connection):
+            print(f"{item.student_id}: {item.scheme} - {item.amount}")
+
         print("Counts by scheme:")
-        print(count_by_scheme(connection))
+        for scheme, count in count_by_scheme(connection).items():
+            print(f"{scheme}: {count}")
+
         print("Audit entries:")
         for entry in audit_log:
             print(entry)

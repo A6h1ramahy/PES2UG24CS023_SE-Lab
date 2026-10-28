@@ -1,0 +1,6 @@
+﻿************* Module scholarship_disbursement
+scholarship_disbursement.py:18:0: W0611: Unused Iterable imported from typing (unused-import)
+
+-----------------------------------
+Your code has been rated at 9.86/10
+

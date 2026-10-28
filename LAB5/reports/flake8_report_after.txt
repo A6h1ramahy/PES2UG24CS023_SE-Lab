@@ -1,0 +1,4 @@
+﻿D:\SE\Lab\LAB5\scholarship_disbursement.py:18:1: F401 'typing.Iterable' imported but unused
+D:\SE\Lab\LAB5\scholarship_disbursement.py:104:80: E501 line too long (94 > 79 characters)
+D:\SE\Lab\LAB5\scholarship_disbursement.py:153:80: E501 line too long (81 > 79 characters)
+D:\SE\Lab\LAB5\scholarship_disbursement.py:154:80: E501 line too long (86 > 79 characters)
