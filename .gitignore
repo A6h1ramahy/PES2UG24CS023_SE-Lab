@@ -1,0 +1,26 @@
+# Python virtual environments
+
+.venv/
+venv/
+env/
+
+# Python cache files
+
+**pycache**/
+*.py[cod]
+
+# Coverage-generated files
+
+.coverage
+.coverage.*
+htmlcov/
+
+# IDE and editor files
+
+.vscode/
+.idea/
+
+# Operating system files
+
+.DS_Store
+Thumbs.db
